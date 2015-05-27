@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<launch> 
+
+	<!-- RVIZ -->
+	<node name="rviz" pkg="rviz" type="rviz" />
+
+	<!-- Bluefox -->
+    <arg name="device"/>
+    <arg name="rate" default="20"/>
+    <arg name="serial" default="$(arg device)"/>
+    <arg name="camera_name" default="mv_$(arg serial)"/>
+    <arg name="camera" default="$(arg camera_name)"/>
+    <arg name="frame_id" default="$(arg camera)"/>
+    <arg name="calib_url" default="file://${ROS_HOME}/camera_info/$(arg camera_name).yaml"/>
+    <arg name="fps" default="$(arg rate)"/>
+    <arg name="color" default="false"/>
+    <arg name="aec" default="0"/>
+    <arg name="cbm" default="false"/>
+    <arg name="ctm" default="1"/>
+    <arg name="dcfm" default="0"/>
+    <arg name="hdr" default="false"/>
+    <arg name="wbp" default="-1"/>
+    <arg name="expose_us" default="5000"/>
+    <arg name="gain_db" default="0.0"/>
+    <arg name="boost" default="false"/>
+    <arg name="mm" default="0"/>
+    <arg name="jpeg_quality" default="80"/>
+    <arg name="output" default="screen"/>
+    <arg name="proc" default="false"/>
+    <arg name="view" default="false"/>
+    <arg name="calib" default="false"/>
+    <node pkg="bluefox2" type="single_node" name="$(arg camera)" output="$(arg output)">
+        <param name="identifier" type="string" value="$(arg serial)"/>
+        <param name="frame_id" type="string" value="$(arg frame_id)"/>
+        <param name="camera_name" type="string" value="$(arg camera_name)"/>
+        <param name="calib_url" type="string" value="$(arg calib_url)"/>
+        <param name="fps" type="double" value="$(arg fps)"/>
+        <param name="color" type="bool" value="$(arg color)"/>
+        <param name="aec" type="int" value="$(arg aec)"/>
+        <param name="cbm" type="bool" value="$(arg cbm)"/>
+        <param name="ctm" type="int" value="$(arg ctm)"/>
+        <param name="dcfm" type="int" value="$(arg dcfm)"/>
+        <param name="hdr" type="bool" value="$(arg hdr)"/>
+        <param name="wbp" type="int" value="$(arg wbp)"/>
+        <param name="expose_us" type="int" value="$(arg expose_us)"/>
+        <param name="gain_db" type="double" value="$(arg gain_db)"/>
+        <param name="boost" type="bool" value="$(arg boost)"/>
+        <param name="mm" type="int" value="$(arg mm)"/>
+        <param name="image_raw/compressed/jpeg_quality" type="int" value="$(arg jpeg_quality)"/>
+    </node>
+
+	<!-- ArUco Positioning System -->
+	<param name="calibration_file" type="string" value="/home/jan/catkin_ws/src/github_packages/aruco_positioning_system/Calibration/bluefox_calibration.txt"/>
+	<param name="MarkerSize" type="double" value="0.135"/>
+	<param name="markers_number" type="int" value="50" />
+	<param name="type_of_markers_space" type="string" value="plane" />
+    <param name="start_now" type="bool" value="true" />
+	<param name="region_of_interest" type="bool" value="false" />
+	<param name="region_of_interest_x" type="int" value="150" />
+	<param name="region_of_interest_y" type="int" value="50" />
+	<param name="region_of_interest_width" type="int" value="340" />
+	<param name="region_of_interest_height" type="int" value="260" />
+	<node pkg="aruco_positioning_system" type="aruco_positioning_system" name="aruco_positioning_system" output="screen">
+		<remap from="/image_raw" to="camera/image_raw_sharpen"/>
+	    <param name="calibration_file" type="string" value="/home/jan/catkin_ws/src/github_packages/aruco_positioning_system/Calibration/bluefox_calibration.txt"/>
+	    <param name="MarkerSize" type="double" value="0.135"/>
+	    <param name="markers_number" type="int" value="50" />
+		<param name="type_of_markers_space" type="string" value="plane" />
+ 		<param name="start_now" type="bool" value="true" />
+	    <param name="region_of_interest" type="bool" value="false" />
+	    <param name="region_of_interest_x" type="int" value="150" />
+	    <param name="region_of_interest_y" type="int" value="50" />
+	    <param name="region_of_interest_width" type="int" value="340" />
+	    <param name="region_of_interest_height" type="int" value="260" />
+	</node>
+
+</launch>
