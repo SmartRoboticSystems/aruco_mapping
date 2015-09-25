@@ -1,44 +1,37 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(aruco_positioning_system)
+project(aruco_mapping)
 
 find_package(catkin REQUIRED COMPONENTS 
-	roscpp
-    std_msgs 
-	message_generation
-	image_transport
-	cv_bridge
-	tf
-	pal_vision_segmentation
-	aruco
-	aruco_msgs
-	geometry_msgs
-)
+             roscpp
+             std_msgs 
+             message_generation
+             image_transport
+             cv_bridge
+             tf
+             pal_vision_segmentation
+             aruco
+             aruco_msgs
+             geometry_msgs)               
 
-add_message_files(
-	FILES
-	ArUcoMarkers.msg
-)
+add_message_files(FILES ArUcoMarkers.msg)
 
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
-)
+generate_messages(DEPENDENCIES 
+                  std_msgs
+                  geometry_msgs)
 
 find_package(OpenCV REQUIRED)
 find_package(aruco REQUIRED)
 
 include_directories(${catkin_INCLUDE_DIRS})
 
-include_directories(${PROJECT_SOURCE_DIR}/Sources/)
-include_directories(${PROJECT_SOURCE_DIR}/Headers/)
+include_directories(${PROJECT_SOURCE_DIR}/src/)
+include_directories(${PROJECT_SOURCE_DIR}/include/)
 
 SET(SOURCES ${PROJECT_SOURCE_DIR}/src/main.cpp
-	    ${PROJECT_SOURCE_DIR}/Sources/estimator.cpp
-   )
-SET(HEADERS ${PROJECT_SOURCE_DIR}/Headers/estimator.h
-   )
-
+            ${PROJECT_SOURCE_DIR}/src/estimator.cpp)
+   
+SET(HEADERS ${PROJECT_SOURCE_DIR}/include/estimator.h)
+   
 catkin_package(
   DEPENDS
   INCLUDE_DIRS
@@ -49,8 +42,7 @@ catkin_package(
   cv_bridge
   cmake_modules
   tf
-  aruco
-)
+  aruco)
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})

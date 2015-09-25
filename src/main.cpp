@@ -1,12 +1,8 @@
 /*********************************************************************************************//**
 * @file main.cpp
 *
-* ArUco Positioning System main file
-*
 * Copyright (c)
-* Jan Bacik
 * Smart Robotic Systems
-* www.smartroboticsys.eu
 * March 2015
 *
 * All rights reserved.
@@ -33,44 +29,30 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-// Standarc C++ libraries
-#include    <iostream>
-// Standard ROS libraries
+/* Author: Jan Bacik */
+
 #include    <ros/ros.h>
 #include    <image_transport/image_transport.h>
-#include    <std_msgs/Empty.h>
-// My libraries
 #include    <estimator.h>
-
-////////////////////////////////////////////////////////////////////////////////
 
 int
 main(int argc, char **argv)
 {
-    // ROS initialization
-    ros::init(argc,argv,"ArUco_positioning_system");
-    // New node
-    ros::NodeHandle myNode;
-    std::cout << "ArUco_positioning_system is running..." << std::endl;
+  ros::init(argc,argv,"aruco_mapping");
+  ros::NodeHandle nh;
+      
+  // ViewPoint_Estimator object
+  aruco_mapping::Estimator est(&nh);
 
-    // Parameter - marker size [m]
-    double p_MarkerSize=0.1;
-    myNode.getParam("MarkerSize",p_MarkerSize);
+  // Image node and subscriber
+  image_transport::ImageTransport it(nh);
+  image_transport::Subscriber img_sub = it.subscribe("/image_raw", 1, &aruco_mapping::Estimator::imageCallback, &est);
 
-    // New Object ViewPoint_Estimator
-    ViewPoint_Estimator myEstimator(&myNode,(float)p_MarkerSize);
+  // Start message for ArUco
+  ros::Subscriber start_sub = nh.subscribe("aruco_mapping/start",1,&aruco_mapping::Estimator::waitForStart, &est);
 
-    // Image node and subscriber
-    image_transport::ImageTransport it(myNode);
-    image_transport::Subscriber videoSub = it.subscribe("/image_raw", 1, &ViewPoint_Estimator::image_callback, &myEstimator);
+  ros::spin();
 
-    // Start message for ArUco
-    ros::Subscriber startAruco;
-    startAruco=myNode.subscribe("arucoPositioningSystem/startArUco",1,&ViewPoint_Estimator::wait_for_start,&myEstimator);
-
-    ros::spin();
-
-    return 0;
+  return(EXIT_SUCCESS);
 }
 
-////////////////////////////////////////////////////////////////////////////////

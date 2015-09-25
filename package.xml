@@ -1,18 +1,17 @@
 <?xml version="1.0"?>
 <package>
-  <name>aruco_positioning_system</name>
-  <version>0.0.0</version>
-  <description>The aruco_positioning_system package</description>
+  <name>aruco_mapping</name>
+  <version>1.1.0</version>
+  <description>Aruco mapping allows user to create a map of Aruco markers  
+               randomly placed in 2D or 3D space by single camera. 
+  </description>
 
-  <maintainer email="janbacik@gmail.com">bacik</maintainer>
-
+  <maintainer email="frantisek.durovsky@smartroboticsys.eu">Frantisek Durovsky</maintainer>
   <license>BSD</license>
-
-  <url type="website">http://www.smartroboticsys.eu/?cat=8</url>
-
-  <buildtool_depend>catkin</buildtool_depend>
+  <url type="website">http://www.smartroboticsys.eu</url>
+  <author email="jan.bacik@smartroboticsys.eu">Jan Bacik</author>
   
-  <!-- Dependencies needed to compile this package. -->
+  <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>message_generation</build_depend>
   <build_depend>image_transport</build_depend>
@@ -24,7 +23,6 @@
   <build_depend>pal_vision_segmentation</build_depend>
   <build_depend>geometry_msgs</build_depend>
   
-  <!-- Dependencies needed after this package is compiled. -->
   <run_depend>roscpp</run_depend>
   <run_depend>message_runtime</run_depend>
   <run_depend>image_transport</run_depend>
