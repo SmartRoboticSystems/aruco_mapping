@@ -29,146 +29,119 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
+/* Author: Jan Bacik */
+
 #ifndef ESTIMATOR_CPP
 #define ESTIMATOR_CPP
-
 
 #include <estimator.h>
 
 namespace aruco_mapping
 {
 
-Estimator::Estimator(ros::NodeHandle *myNode) :
-    marker_size_(0.1),                      // Marker size in m
-    calib_filename_("empty"),               // Initial filenames
-    listener_ (new tf::TransformListener), // Listener of TFs
-    start_now_(false),
-    roi_allowed_ (false),               // switiching ROI
-    num_of_markers_to_find_ (35),                // Number of used markers
-    space_type_ ("plane")                   // default space - plane
+Estimator::Estimator(ros::NodeHandle *nh) :
+  listener_ (new tf::TransformListener),  // Initialize TF Listener  
+  num_of_markers_ (10),                   // Number of used markers
+  marker_size_(0.1),                      // Marker size in m
+  calib_filename_("empty"),               // Calibration filepath
+  space_type_ ("plane"),                  // Space type - 2D plane 
+  roi_allowed_ (false),                   // ROI not allowed by default
+  first_marker_detected_(false),          // First marker not detected by defualt
+  lowest_marker_id_(-1),                  // Lowest marker ID
+  marker_counter_(0),                     // Reset marker counter
+  closest_camera_index_(0)                // Reset closest camera index 
+  
 {
-     // Parameter - marker size [m]
+  double temp_marker_size;  
+  
+  //Parse params from launch file 
+  nh->getParam("/aruco_mapping/calibration_file", calib_filename_);
+  nh->getParam("/aruco_mapping/marker_size", temp_marker_size); 
+  nh->getParam("/aruco_mapping/num_of_markers", num_of_markers_);
+  nh->getParam("/aruco_maping/space_type",space_type_);
+  nh->getParam("/aruco_mapping/roi_allowed",roi_allowed_);
+  nh->getParam("/aruco_mapping/roi_x",roi_x_);
+  nh->getParam("/aruco_mapping/roi_y",roi_y_);
+  nh->getParam("/aruco_mapping/roi_w",roi_w_);
+  nh->getParam("/aruco_mapping/roi_h",roi_h_);
+     
+  // Double to float conversion
+  marker_size_ = float(temp_marker_size);
+  
+  if(calib_filename_ == "empty")
+    ROS_WARN("Calibration filename empty! Check the launch file paths");
+  else
+  {
+    ROS_INFO_STREAM("Calibration file path: " << calib_filename_ );
+    ROS_INFO_STREAM("Number of markers: " << num_of_markers_);
+    ROS_INFO_STREAM("Marker Size: " << temp_marker_size);
+    ROS_INFO_STREAM("Type of space: " << space_type_);
+    ROS_INFO_STREAM("ROI allowed: " << roi_allowed_);
+    ROS_INFO_STREAM("ROI x-coor: " << roi_x_);
+    ROS_INFO_STREAM("ROI y-coor: " << roi_x_);
+    ROS_INFO_STREAM("ROI width: "  << roi_w_);
+    ROS_INFO_STREAM("ROI height: " << roi_h_);      
+  }
     
-    double temp_marker_size;  
-    myNode->getParam("MarkerSize",temp_marker_size);  
-    marker_size_ = float(temp_marker_size);
+  //ROS publishers
+  marker_msg_pub_           = nh->advertise<aruco_mapping::ArUcoMarkers>("aruco_poses",1);
+  marker_visualization_pub_ = nh->advertise<visualization_msgs::Marker>("aruco_markers",1);
+          
+  //Load data from calibration file
+  loadCalibrationFile(calib_filename_);
     
-    // Path to calibration file of camera
-    //--------------------------------------------------
-    myNode->getParam("calibration_file",calib_filename_);
-    std::cout << "Calibration file path: " << calib_filename_ << std::endl;
-    //--------------------------------------------------
-    // Parameter - number of all markers
-    myNode->getParam("markers_number",num_of_markers_to_find_);
-    //--------------------------------------------------
-    
-    //Start Immediately?
-    myNode->getParam("StartImmediately", start_now_);
-    
-    
-    // Parameter - region of interest
-    myNode->getParam("region_of_interest",roi_allowed_);
-    //--------------------------------------------------
-    
-    //--------------------------------------------------
-    // Parameter - type of space, plane or 3D space
-    myNode->getParam("type_of_markers_space",space_type_);
-    //--------------------------------------------------
-    // Parameter - region of interest - parameters
-    //--------------------------------------------------
-    roi_x_ = 0;
-    roi_y_ = 0;
-    roi_w_ = 10;
-    roi_h_ = 5;
-    
-    myNode->getParam("region_of_interest_x",roi_x_);
-    myNode->getParam("region_of_interest_y",roi_y_);
-    myNode->getParam("region_of_interest_width",roi_w_);
-    myNode->getParam("region_of_interest_height",roi_h_);
-    //--------------------------------------------------
-
-    // Publishers
-    marker_msg_pub_=myNode->advertise<aruco_mapping::ArUcoMarkers>("ArUcoMarkersPose",1);
-    marker_visualization_pub_=myNode->advertise<visualization_msgs::Marker>("aruco_marker",1);
-    //--------------------------------------------------
-
-    // Loading calibration parameters
-    //--------------------------------------------------
-    loadCalibrationFile(calib_filename_);
-    //--------------------------------------------------
-
-    // Inicialization of marker
-    //--------------------------------------------------
-    cv::namedWindow("Mono8", CV_WINDOW_AUTOSIZE);
-    //--------------------------------------------------
-
-
-    // Inicialization of variables
-    //--------------------------------------------------
-    first_marker_detected_=false;
-    lowest_marker_id_=-1;
-    marker_counter_=0;
-    closest_camera_index_=0;
-    // Dynamics array of markers
-    markers_=new MarkerInfo[num_of_markers_to_find_];
-
-    // Inicialization of array - all informations about each marker
-    for(int j=0;j<num_of_markers_to_find_;j++)
-    {
-        markers_[j].relatedMarkerID=-1;
-        markers_[j].active=false;
-        markers_[j].markerID=-1;
-    }
+  //Initialize OpenCV window
+  cv::namedWindow("Mono8", CV_WINDOW_AUTOSIZE);       
+      
+  //Resize vector of markers 
+  markers_.resize(num_of_markers_);
+  
+  // Default markers_ initialization
+  for(size_t i = 0; i < num_of_markers_;i++)
+  {
+    markers_[i].relatedMarkerID = -1;
+    markers_[i].active = false;
+    markers_[i].markerID = -1;
+  }
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////
 
 Estimator::~Estimator()
 {
-    delete intrinsics_;
-    delete distortion_coeff_;
-    delete image_size_;
-    delete listener_;
-    delete [] markers_;
+  delete intrinsics_;
+  delete distortion_coeff_;
+  delete image_size_;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////
 
 void
 Estimator::imageCallback(const sensor_msgs::ImageConstPtr &original_image)
 {
-    // ROS Image to Mat structure
-    //--------------------------------------------------
-    cv_bridge::CvImagePtr cv_ptr;
-    try
-    {
-        cv_ptr=cv_bridge::toCvCopy(original_image, sensor_msgs::image_encodings::MONO8);
-    }
-    catch (cv_bridge::Exception& e)
-    {
-        ROS_ERROR("Error open image %s", e.what());
-        return;
-    }
-    I_=cv_ptr->image;
-    //--------------------------------------------------
+  //Create cv_brigde instance
+  cv_bridge::CvImagePtr cv_ptr;
+  try
+  {
+    cv_ptr=cv_bridge::toCvCopy(original_image, sensor_msgs::image_encodings::MONO8);
+  }
+  catch (cv_bridge::Exception& e)
+  {
+    ROS_ERROR("Not able to convert sensor_msgs::Image to OpenCV::Mat format %s", e.what());
+    return;
+  }
+  
+  // sensor_msgs::Image to OpenCV Mat structure
+  I_=cv_ptr->image;
+  
+  // region of interest
+  if(roi_allowed_==true)
+    I_=cv_ptr->image(cv::Rect(roi_x_,roi_y_,roi_w_,roi_h_));
 
-    // Region Of Interest
-    if(roi_allowed_==true)
-        I_=cv_ptr->image(cv::Rect(roi_x_,roi_y_,roi_w_,roi_h_));
-
-    // Marker detection
-    //--------------------------------------------------
-    if(start_now_ == true)
-      bool found=markersFindPattern(I_,I_);
-    //--------------------------------------------------
-
-    // Show image
-    cv::imshow("Mono8", I_);
-    cv::waitKey(10);
+  //Marker detection
+  markersFindPattern(I_,I_);
+  
+  // Show image
+  cv::imshow("Mono8", I_);
+  cv::waitKey(10);  
 }
 
-
-////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool
 Estimator::markersFindPattern(cv::Mat input_image,cv::Mat output_image)
@@ -177,7 +150,7 @@ Estimator::markersFindPattern(cv::Mat input_image,cv::Mat output_image)
     std::vector<aruco::Marker> markers;
 
     // Initialization, all markers sign of visibility is set to false
-    for(int j=0;j<num_of_markers_to_find_;j++)
+    for(int j=0;j<num_of_markers_;j++)
         markers_[j].active=false;
 
     // Actual count of found markers before new image processing
@@ -189,6 +162,7 @@ Estimator::markersFindPattern(cv::Mat input_image,cv::Mat output_image)
     // Markers Detector, if return marker.size() 0, it dint finf any marker in image
     MDetector.detect(input_image,markers,aruco_calib_params_,marker_size_);
 
+    
     // Any marker wasnt find
     if(markers.size()==0)
         std::cout << "Any marker is not in the actual image!" << std::endl;
@@ -522,7 +496,7 @@ Estimator::markersFindPattern(cv::Mat input_image,cv::Mat output_image)
     if(first_marker_detected_==true)
     {
         double minSize=999999;
-        for(int k=0;k<num_of_markers_to_find_;k++)
+        for(int k=0;k<num_of_markers_;k++)
         {
             double a;
             double b;
@@ -746,60 +720,63 @@ Estimator::arucoMarker2Tf(const aruco::Marker &marker)
     return tf::Transform(marker_tf_rot, marker_tf_tran);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
 bool
 Estimator::loadCalibrationFile(std::string calib_filename_)
 {
-    std::cout << "Reading calibration file from: " << calib_filename_ << std::endl;
-    try
+  ROS_INFO_STREAM("Parsing data from : " << calib_filename_ );
+  try
+  {
+    //Search for camera matrix and distortion coeffs in calibration textfile
+    string camera_matrix_str("camera matrix");
+    string distortion_str("distortion");
+
+    // ifstream object
+    ifstream file;
+    file.open(calib_filename_.c_str());
+
+    // Alocation of memory for calibration data
+    intrinsics_       = new(cv::Mat)(3,3,CV_64F);
+    distortion_coeff_ = new(cv::Mat)(5,1,CV_64F);
+    image_size_       = new(cv::Size);
+
+    //Read calibration .txt file line by line
+    std::string line;
+    int line_counter = 0;
+    while(getline(file, line))
     {
-        //Searching camera matrix and distortion in calibration textfile
-        //# oST version 5.0 parameters
-        string camera_matrix_str("camera matrix");
-        string distortion_str("distortion");
-
-        // Object of reading file
-        ifstream file;
-        file.open(calib_filename_.c_str());
-
-        // Alocation of memory
-        intrinsics_=new(cv::Mat)(3,3,CV_64F);
-        distortion_coeff_=new(cv::Mat)(5,1,CV_64F);
-        image_size_=new(cv::Size);
-
-        //  Reading of calibration file lines
-        std::string line;
-        int line_counter = 0;
-        while(getline(file, line))
-        {
-            // Camera matrix 3x3
-            if(line==camera_matrix_str)
-            {
-                for(size_t i=0;i<3;i++)
-                    for(size_t j=0;j<3;j++)
-                        file >> intrinsics_->at<double>(i,j);
-                std::cout << "Intrinsics:" << std::endl << *intrinsics_ << std::endl;
-            }
-            // Distortion 5x1
-            if(line==distortion_str)
-            {
-                for(size_t i=0; i<5;i++)
-                file >> distortion_coeff_->at<double>(i,0);
-                std::cout << "Distortion: " << *distortion_coeff_ << std::endl;
-            }
-            line_counter++;
-        }
-        aruco_calib_params_.setParams(*intrinsics_, *distortion_coeff_, *image_size_);
-        if ((intrinsics_->at<double>(2,2)==1)&&(distortion_coeff_->at<double>(0,4)==0))
-            ROS_INFO_STREAM("Calibration file loaded successfully");
-        else
-            ROS_WARN("WARNING: Suspicious calibration data");
+      // Camera matrix 3x3
+      if(line==camera_matrix_str)
+      {
+        for(size_t i=0;i<3;i++)
+          for(size_t j=0;j<3;j++)
+            file >> intrinsics_->at<double>(i,j);
+            ROS_INFO_STREAM("Intrinsics:" << std::endl << *intrinsics_);
+      }
+      
+      // Distortion 5x1
+      if(line==distortion_str)
+      {
+        for(size_t i=0; i<5;i++)
+          file >> distortion_coeff_->at<double>(i,0);
+          ROS_INFO_STREAM("Distortion: " << *distortion_coeff_);
+      }
+      
+      line_counter++;
     }
-    catch(int e)
-    {
-        std::cout << "An exception n." << e << "occured";
-    }
+    
+    //Set parameters for aruco detection
+    aruco_calib_params_.setParams(*intrinsics_, *distortion_coeff_, *image_size_);
+    
+    //Check if calibration data in expected format
+    if ((intrinsics_->at<double>(2,2)==1)&&(distortion_coeff_->at<double>(0,4)==0))
+      ROS_INFO_STREAM("Calibration file loaded successfully");
+    else
+      ROS_WARN("Wrong calibration data, check calibration file and filepath");
+  }
+  catch(int e)
+  {
+    ROS_ERROR_STREAM("Not able to read data from calibration file, an exception n." << e << " occured");
+  }
 }
 
 }  //aruco_mapping

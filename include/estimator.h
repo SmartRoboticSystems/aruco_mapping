@@ -130,7 +130,7 @@ private:
     
   float marker_size_;                            
     
-  int num_of_markers_to_find_;                    
+  int num_of_markers_;                    
   int lowest_marker_id_;                          
   int marker_counter_;                            
   int marker_counter_previous_;                   // counter of actual markers before image processing
@@ -145,7 +145,7 @@ private:
   int  roi_w_;                                     
   int  roi_h_;     
   
-  MarkerInfo *markers_;                         // pole pre poziciu kazdeho markera - markre pevne na zemi
+  std::vector<MarkerInfo> markers_;              // pole pre poziciu kazdeho markera - markre pevne na zemi
   
   tf::TransformListener *listener_;              // listener for TF
   tf::TransformBroadcaster broadcaster_;         // broadcaster
