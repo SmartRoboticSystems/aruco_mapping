@@ -80,15 +80,15 @@ public:
   
   typedef struct MarkerInfo
   {
-    int markerID;                                   // Marker ID
-    bool active;                                    // Sign of acitivity (visibility) of marker
-    int relatedMarkerID;                            // Realated marker ID, (define ID of which marker is relative to actual marker)
-    geometry_msgs::Pose AllMarkersPose;             // Position of marker to another marker
-    tf::StampedTransform AllMarkersTransform;       // Transformation of Marker to another marker
-    tf::StampedTransform AllMarkersTransformGlobe;  // Transformation of marker to WORLD [0,0,0]
-    geometry_msgs::Pose AllMarkersPoseGlobe;        // Position of marker to WORLD [0,0,0]
-    geometry_msgs::Pose CurrentCameraPose;          // Actual position of camera over marker
-    tf::Transform CurrentCameraTf;                  // Actuak Transformation of camera over marker
+    bool active;                                     // Sign of marker acitivity (visibility)
+    int marker_id;                                   // Marker ID
+    int previous_marker_id;                          // Used for chaining markers
+    geometry_msgs::Pose pose_to_previous;            // Position of marker to another marker
+    geometry_msgs::Pose pose_to_globe;               // Position of marker to WORLD [0,0,0]
+    tf::StampedTransform transform_to_previous;      // Transformation of Marker to another marker
+    tf::StampedTransform transform_to_globe;         // Transformation of marker to WORLD [0,0,0]
+    geometry_msgs::Pose current_camera_pose;         // Actual position of camera over marker
+    tf::Transform current_camera_tf;                 // Actual Transformation of camera over marker
    
    } MarkerInfo;
 
@@ -110,7 +110,7 @@ private:
   
   tf::Transform arucoMarker2Tf(const aruco::Marker &marker);
   void publishTfs(bool world_option);
-  void publishMarker(geometry_msgs::Pose markerPose, int MarkerID, int rank);
+  void publishMarker(geometry_msgs::Pose marker_pose, int marker_id, int index);
   bool loadCalibrationFile(std::string filename);
   bool markersFindPattern(cv::Mat input_image,cv::Mat output_image);
   
