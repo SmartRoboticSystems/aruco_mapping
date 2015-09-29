@@ -36,23 +36,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Standard ROS libraries
 #include <ros/ros.h>
-#include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
-#include <geometry_msgs/Pose.h>
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/PoseArray.h>
 #include <visualization_msgs/Marker.h>
-#include <std_msgs/Int16.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
-#include <std_msgs/Empty.h>
 
-// Standarc C++ libraries
-#include <iostream>
+// Standard C++ libraries
 #include <fstream>
-#include <cmath>
 
 // Aruco libraries
 #include <aruco/aruco.h>
@@ -67,7 +59,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <opencv2/highgui/highgui.hpp>
 
 // Custom message
-#include <aruco_mapping/ArUcoMarkers.h>
+#include <aruco_mapping/ArucoMarker.h>
+
 
 /** \brief Aruco mapping namespace */
 namespace aruco_mapping
@@ -78,82 +71,84 @@ class Estimator
 {
 public:
   
-  typedef struct MarkerInfo
+  /** \brief Struct to keep marker information */
+  struct MarkerInfo
   {
-    bool active;                                     // Sign of marker acitivity (visibility)
+    bool active;                                     // Flag of marker visibility (active)
     int marker_id;                                   // Marker ID
     int previous_marker_id;                          // Used for chaining markers
-    geometry_msgs::Pose pose_to_previous;            // Position of marker to another marker
-    geometry_msgs::Pose pose_to_globe;               // Position of marker to WORLD [0,0,0]
-    tf::StampedTransform transform_to_previous;      // Transformation of Marker to another marker
-    tf::StampedTransform transform_to_globe;         // Transformation of marker to WORLD [0,0,0]
-    geometry_msgs::Pose current_camera_pose;         // Actual position of camera over marker
-    tf::Transform current_camera_tf;                 // Actual Transformation of camera over marker
-   
-   } MarkerInfo;
+    geometry_msgs::Pose pose_to_previous;            // Position with respect to previous marker
+    geometry_msgs::Pose pose_to_globe;               // Position with respect to world's origin
+    tf::StampedTransform transform_to_previous;      // TF with respect to previous marker
+    tf::StampedTransform transform_to_globe;         // TF with respect to world's origin
+    geometry_msgs::Pose current_camera_pose;         // Position of camera with respect to the marker
+    tf::Transform current_camera_tf;                 // TF of camera with respect to the marker
+   };
 
 public:
   
-  /** \brief Construct a client for EZN64 USB control*/  
-  Estimator(ros::NodeHandle *myNode);
+  /** \brief Construct client for Aruco mapping*/
+  Estimator(ros::NodeHandle *nh);
     
   ~Estimator();
-    
+
+  /** \brief Callback function to handle image processing*/
   void imageCallback(const sensor_msgs::ImageConstPtr &original_image);
-  
-  inline void waitForStart(const std_msgs::EmptyPtr& message)
-  {
-    start_now_ = true;
-  }
 
 private:
   
-  tf::Transform arucoMarker2Tf(const aruco::Marker &marker);
-  void publishTfs(bool world_option);
-  void publishMarker(geometry_msgs::Pose marker_pose, int marker_id, int index);
+  /** \brief Function to parse data from calibration file*/
   bool loadCalibrationFile(std::string filename);
-  bool markersFindPattern(cv::Mat input_image,cv::Mat output_image);
-  
-  cv::Mat  I_;
-  cv::Mat  *intrinsics_;                            
-  cv::Mat  *distortion_coeff_;                      
-  cv::Size *image_size_;                           
-  
-  ros::Publisher marker_visualization_pub_;       
-  ros::Publisher marker_msg_pub_;                 // publisher of my message
-   
-  aruco_mapping::ArUcoMarkers ArUcoMarkersMsgs;
-  aruco::CameraParameters aruco_calib_params_;     
-    
-  std::string calib_filename_;                    
+
+  /** \brief Function to process input image, detect markers and its poses*/
+  bool processImage(cv::Mat input_image,cv::Mat output_image);
+
+  /** \brief Function to publish all known TFs*/
+  void publishTfs(bool world_option);
+
+  /** \brief Function to publish all known markers for visualization purposes*/
+  void publishMarker(geometry_msgs::Pose marker_pose, int marker_id, int index);
+
+  /** \brief Compute TF from marker detector result*/
+  tf::Transform arucoMarker2Tf(const aruco::Marker &marker);
+
+  /** \brief Publisher of visualization_msgs::Marker message*/
+  ros::Publisher marker_visualization_pub_;
+
+  /** \brief Publisher of aruco_mapping::ArucoMarker custom message*/
+  ros::Publisher marker_msg_pub_;
+
+  //Launch file parameters
+  std::string calib_filepath_;
   std::string space_type_;                        
-    
-  float marker_size_;                            
-    
+  float marker_size_;
   int num_of_markers_;                    
-  int lowest_marker_id_;                          
-  int marker_counter_;                            
-  int marker_counter_previous_;                   // counter of actual markers before image processing
-  int closest_camera_index_;                     // actual camera, which is closer to some marker
-  
-  bool start_now_;
-  bool first_marker_detected_;                    
-  
-  bool roi_allowed_;                              
+  bool roi_allowed_;
   int  roi_x_;                                      
   int  roi_y_;                                      
   int  roi_w_;                                     
-  int  roi_h_;     
-  
-  std::vector<MarkerInfo> markers_;              // pole pre poziciu kazdeho markera - markre pevne na zemi
-  
-  tf::TransformListener *listener_;              // listener for TF
-  tf::TransformBroadcaster broadcaster_;         // broadcaster
-  tf::StampedTransform world_position_transform_;           // global position to World TF
-  
-  geometry_msgs::Pose world_position_geometry_msg_;        // global position to World
- 
-  
+  int  roi_h_;
+
+  /** \brief Container holding MarkerInfo data about all detected markers */
+  std::vector<MarkerInfo> markers_;
+
+  /** \brief Actual TF of camera with respect to world's origin */
+  tf::StampedTransform world_position_transform_;
+
+  /** \brief Actual Pose of camera with respect to world's origin */
+  geometry_msgs::Pose world_position_geometry_msg_;
+
+  aruco::CameraParameters aruco_calib_params_;
+
+  int marker_counter_;
+  int marker_counter_previous_;
+  int lowest_marker_id_;
+
+  bool first_marker_detected_;
+
+  tf::TransformListener *listener_;
+  tf::TransformBroadcaster broadcaster_;
+   
 };
 
 }  //aruco_mapping

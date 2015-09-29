@@ -48,9 +48,6 @@ main(int argc, char **argv)
   image_transport::ImageTransport it(nh);
   image_transport::Subscriber img_sub = it.subscribe("/image_raw", 1, &aruco_mapping::Estimator::imageCallback, &est);
 
-  // Start message for ArUco
-  ros::Subscriber start_sub = nh.subscribe("aruco_mapping/start",1,&aruco_mapping::Estimator::waitForStart, &est);
-
   ros::spin();
 
   return(EXIT_SUCCESS);
