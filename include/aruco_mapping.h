@@ -1,5 +1,5 @@
 /*********************************************************************************************//**
-* @file estimator.h
+* @file aruco_mapping.h
 *
 * Copyright (c)
 * Smart Robotic Systems
@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* Author: Jan Bacik */
 
-#ifndef ESTIMATOR_H
-#define ESTIMATOR_H
+#ifndef ARUCO_MAPPING_H
+#define ARUCO_MAPPING_H
 
 // Standard ROS libraries
 #include <ros/ros.h>
@@ -67,7 +67,7 @@ namespace aruco_mapping
 {
 
 /** \brief Client class for Aruco mapping */  
-class Estimator
+class ArucoMapping
 {
 public:
   
@@ -88,9 +88,9 @@ public:
 public:
   
   /** \brief Construct client for Aruco mapping*/
-  Estimator(ros::NodeHandle *nh);
+  ArucoMapping(ros::NodeHandle *nh);
     
-  ~Estimator();
+  ~ArucoMapping();
 
   /** \brief Callback function to handle image processing*/
   void imageCallback(const sensor_msgs::ImageConstPtr &original_image);
@@ -107,12 +107,21 @@ private:
   void publishTfs(bool world_option);
 
   /** \brief Function to publish all known markers for visualization purposes*/
-  void publishMarker(geometry_msgs::Pose marker_pose, int marker_id, int index);
+  void publishMarkerForVisualization(geometry_msgs::Pose marker_pose, int marker_id, int index);
+
+  /** \brief Function to publish custom marker message to "aruco_poses" topic*/
+  void publishMarkerCustomMsg(bool any_markers_visible, int num_of_visible_markers);
+
+  /** \brief Function to identify lowest marker id with world's origin*/
+  void identifyWithWorldOrigin(int lowest_marker_id);
+
+  /** \brief Function to compute global pose if relative pose to previous marker is known*/
+  void computeMarkerGlobalPosition(int index);
 
   /** \brief Compute TF from marker detector result*/
   tf::Transform arucoMarker2Tf(const aruco::Marker &marker);
 
-  /** \brief Publisher of visualization_msgs::Marker message*/
+  /** \brief Publisher of visualization_msgs::Marker message to "aruco_markers" topic*/
   ros::Publisher marker_visualization_pub_;
 
   /** \brief Publisher of aruco_mapping::ArucoMarker custom message*/
@@ -142,7 +151,6 @@ private:
 
   int marker_counter_;
   int marker_counter_previous_;
-  int lowest_marker_id_;
 
   bool first_marker_detected_;
 
@@ -164,8 +172,9 @@ private:
   static const double RVIZ_MARKER_COLOR_B = 1.0;
   static const double RVIZ_MARKER_COLOR_A = 1.0;
 
-};
+  static const double THIS_IS_FIRST_MARKER = -2;
 
-}  //aruco_mapping
+};  //ArucoMapping class
+}   //aruco_mapping namespace
 
-#endif //ESTIMATOR_H
+#endif //ARUCO_MAPPING_H

@@ -42,11 +42,11 @@ main(int argc, char **argv)
   ros::NodeHandle nh;
       
   // ViewPoint_Estimator object
-  aruco_mapping::Estimator est(&nh);
+  aruco_mapping::ArucoMapping obj(&nh);
 
   // Image node and subscriber
   image_transport::ImageTransport it(nh);
-  image_transport::Subscriber img_sub = it.subscribe("/image_raw", 1, &aruco_mapping::Estimator::imageCallback, &est);
+  image_transport::Subscriber img_sub = it.subscribe("/image_raw",1,&aruco_mapping::ArucoMapping::imageCallback,&obj);
 
   ros::spin();
 
