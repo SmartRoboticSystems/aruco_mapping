@@ -152,17 +152,11 @@ Estimator::loadCalibrationFile(std::string calib_filename_)
     {
       //Read image width
       if(line == width_str)
-      {
         file >> image_size->width;
-        ROS_DEBUG_STREAM("Image width: " << image_size->width);
-      }
 
       //Read image height
       if(line == height_str)
-      {
         file >> image_size->height;
-        ROS_DEBUG_STREAM("Image height: " << image_size->height);
-      }
 
       // Read camera matrix 3x3
       if(line == camera_matrix_str)
@@ -170,7 +164,6 @@ Estimator::loadCalibrationFile(std::string calib_filename_)
       for(size_t i = 0; i < 3; i++)
         for(size_t j = 0; j < 3; j++)
           file >> intrinsics->at<double>(i,j);
-          ROS_DEBUG_STREAM("Intrinsics:" << std::endl << *intrinsics);
       }
 
       // Read distortion 5x1
@@ -178,10 +171,14 @@ Estimator::loadCalibrationFile(std::string calib_filename_)
       {
         for(size_t i = 0; i < 5; i++)
           file >> distortion_coeff->at<double>(i,0);
-          ROS_DEBUG_STREAM("Distortion: " << *distortion_coeff);
       }
       line_counter++;
     }
+
+    ROS_DEBUG_STREAM("Image width: " << image_size->width);
+    ROS_DEBUG_STREAM("Image height: " << image_size->height);
+    ROS_DEBUG_STREAM("Intrinsics:" << std::endl << *intrinsics);
+    ROS_DEBUG_STREAM("Distortion: " << *distortion_coeff);
 
     //Set parameters for aruco detection
     aruco_calib_params_.setParams(*intrinsics, *distortion_coeff, *image_size);
@@ -200,7 +197,7 @@ Estimator::loadCalibrationFile(std::string calib_filename_)
   }
   catch(int e)
   {
-    ROS_ERROR_STREAM("Not able to read data from calibration file, an exception n." << e << " occured");
+    ROS_ERROR("Not able to read data from calibration file!");
   }
 }
 
@@ -218,24 +215,24 @@ Estimator::imageCallback(const sensor_msgs::ImageConstPtr &original_image)
   }
   catch (cv_bridge::Exception& e)
   {
-    ROS_ERROR("Not able to convert sensor_msgs::Image to OpenCV::Mat format %s", e.what());
+    ROS_ERROR_STREAM("Not able to convert sensor_msgs::Image to OpenCV::Mat format: " << e.what());
     return;
   }
   
   // sensor_msgs::Image to OpenCV::Mat structure
   cv::Mat  I;
-  I=cv_ptr->image;
+  I = cv_ptr->image;
   
   // Apply region of interest
   if(roi_allowed_==true)
-    I=cv_ptr->image(cv::Rect(roi_x_,roi_y_,roi_w_,roi_h_));
+    I = cv_ptr->image(cv::Rect(roi_x_,roi_y_,roi_w_,roi_h_));
 
   //Marker detection
   processImage(I,I);
   
   // Show image
   cv::imshow("Mono8", I);
-  cv::waitKey(10);  
+  cv::waitKey(CV_WAIT_KEY);
 }
 
 
@@ -262,18 +259,12 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
 
   if((temp_markers.size() > 0) && (first_marker_detected_ == false))
   {
-    size_t low_ID;
-
     // Filter detected markers to find one with the lowest ID
     lowest_marker_id_ = temp_markers[0].id;
-    low_ID = 0;
     for(size_t i = 0; i < temp_markers.size(); i++)
     {
       if(temp_markers[i].id < lowest_marker_id_)
-      {
         lowest_marker_id_ = temp_markers[i].id;
-        low_ID = i;
-      }
     }
 
     ROS_INFO_STREAM("Starting marker ID: " << lowest_marker_id_ );
@@ -338,7 +329,7 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
   for(size_t i = 0; i < temp_markers.size(); i++)
   {
     //Draw marker convex, ID, cube and axis
-    temp_markers[i].draw(output_image, cv::Scalar(0,0,255),2);
+    temp_markers[i].draw(output_image, cv::Scalar(0,0,255),CV_WINDOW_MARKER_LINE_WIDTH);
     aruco::CvDrawingUtils::draw3dCube(output_image,temp_markers[i], aruco_calib_params_);
     aruco::CvDrawingUtils::draw3dAxis(output_image,temp_markers[i], aruco_calib_params_);
 
@@ -427,7 +418,7 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
       // Array ID of markers, which position of new marker is calculated
       int last_marker_id;
 
-      // Test, if it is possible calculate position of a new marker with respect to the old marker
+      // Test, if possible to calculate position of a new marker with respect to the previous marker
       for(size_t j = 0; j < marker_array_id; j++)
       {
         if((markers_[j].active == true) && (at_least_one_marker_visible == false))
@@ -454,11 +445,11 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
 
           // TF from old camera to new camera
           broadcaster_.sendTransform(tf::StampedTransform(markers_[marker_array_id].current_camera_tf,ros::Time::now(),camera_tf_id_old.str(),camera_tf_id.str()));
-          usleep(100);
+          ros::Duration(BROADCAST_WAIT_INTERVAL).sleep();
         }
 
         // Calculate TF between two markers
-        listener_->waitForTransform(marker_tf_id_old.str(),camera_tf_id.str(),ros::Time(0),ros::Duration(2.0));
+        listener_->waitForTransform(marker_tf_id_old.str(),camera_tf_id.str(),ros::Time(0),ros::Duration(WAIT_FOR_TRANSFORM_INTERVAL));
         try
         {
           broadcaster_.sendTransform(tf::StampedTransform(markers_[last_marker_id].current_camera_tf,ros::Time::now(),marker_tf_id_old.str(),camera_tf_id_old.str()));
@@ -468,14 +459,13 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
         }
         catch(tf::TransformException &e)
         {
-          ROS_ERROR("Not able to obtain TF Transform");
-          ros::Duration(2.0).sleep();
+          ROS_ERROR_STREAM("Not able to obtain TF Transform, an exception %s" << e.what());
         }
 
-        // Save quaternion and origin of calculated TF to pose
+        // Save orientation of calculated TF to pose
         marker_quaternion = markers_[marker_array_id].transform_to_previous.getRotation();
 
-        // If all markers are in the plane, for better accuracy, we known that roll and pitch are zero
+        // If plane "space_type" selected, we consider roll and pitch zero
         if(space_type_ == "plane")
         {
           double roll, pitch, yaw;
@@ -488,8 +478,8 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
 
         marker_position = markers_[marker_array_id].transform_to_previous.getOrigin();
 
-        // If all markers are in the plane, for better accuracy, we known that Z is zero
-        if(space_type_=="plane")
+        // If plane "space_type" selected, we consider z axis zero
+        if(space_type_ == "plane")
           marker_position.setZ(0);
 
         markers_[marker_array_id].transform_to_previous.setOrigin(marker_position);
@@ -508,9 +498,7 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
         // increasing count of markers
         marker_counter_++;
 
-        //--------------------------------------
-        // Position of new marker have to be inversed, because i need for calculating of a next new marker position inverse TF of old markers
-        //--------------------------------------
+        // Position of new marker have to be inveted
         markers_[marker_array_id].current_camera_tf = markers_[marker_array_id].current_camera_tf.inverse();
 
         marker_position = markers_[marker_array_id].current_camera_tf.getOrigin();
@@ -527,45 +515,43 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
         // Publishing of all TFs and markers
         publishTfs(false);
       }
-  }
-
-  //------------------------------------------------------
-  // New Marker was found, its global position is calculated
-  //------------------------------------------------------
-  if((marker_counter_previous_ < marker_counter_) && (first_marker_detected_ == true))
-  {
-    // Publish all TF for five times for listener
-    for(size_t j = 0; j < 5; j++)
-       publishTfs(false);
-
-    std::stringstream marker_globe;
-    marker_globe << "marker_" << marker_array_id;
-
-    listener_->waitForTransform("world",marker_globe.str(),ros::Time(0),ros::Duration(2.0));
-    try
-    {
-      listener_->lookupTransform("world",marker_globe.str(),ros::Time(0),markers_[marker_array_id].transform_to_globe);
     }
 
-    catch(tf::TransformException &e)
+    //------------------------------------------------------
+    // New Marker was found, its global position is calculated
+    //------------------------------------------------------
+    if((marker_counter_previous_ < marker_counter_) && (first_marker_detected_ == true))
     {
-      ROS_ERROR("Not able to lookup transform: ");
-      ros::Duration(2.0).sleep();
+      // Publish all TF five times for listener
+      for(size_t j = 0; j < 5; j++)
+         publishTfs(false);
+
+      std::stringstream marker_globe;
+      marker_globe << "marker_" << marker_array_id;
+
+      listener_->waitForTransform("world",marker_globe.str(),ros::Time(0),ros::Duration(WAIT_FOR_TRANSFORM_INTERVAL));
+      try
+      {
+        listener_->lookupTransform("world",marker_globe.str(),ros::Time(0),markers_[marker_array_id].transform_to_globe);
+      }
+      catch(tf::TransformException &e)
+      {
+        ROS_ERROR_STREAM("Not able to lookup transform: " << e.what());
+      }
+
+      // Saving TF to Pose
+      const tf::Vector3 marker_position = markers_[marker_array_id].transform_to_globe.getOrigin();
+      markers_[marker_array_id].pose_to_globe.position.x = marker_position.getX();
+      markers_[marker_array_id].pose_to_globe.position.y = marker_position.getY();
+      markers_[marker_array_id].pose_to_globe.position.z = marker_position.getZ();
+
+      tf::Quaternion marker_quaternion = markers_[marker_array_id].transform_to_globe.getRotation();
+      markers_[marker_array_id].pose_to_globe.orientation.x = marker_quaternion.getX();
+      markers_[marker_array_id].pose_to_globe.orientation.y = marker_quaternion.getY();
+      markers_[marker_array_id].pose_to_globe.orientation.z = marker_quaternion.getZ();
+      markers_[marker_array_id].pose_to_globe.orientation.w = marker_quaternion.getW();
     }
-
-    // Saving TF to Pose
-    const tf::Vector3 marker_position = markers_[marker_array_id].transform_to_globe.getOrigin();
-    markers_[marker_array_id].pose_to_globe.position.x = marker_position.getX();
-    markers_[marker_array_id].pose_to_globe.position.y = marker_position.getY();
-    markers_[marker_array_id].pose_to_globe.position.z = marker_position.getZ();
-
-    tf::Quaternion marker_quaternion = markers_[marker_array_id].transform_to_globe.getRotation();
-    markers_[marker_array_id].pose_to_globe.orientation.x = marker_quaternion.getX();
-    markers_[marker_array_id].pose_to_globe.orientation.y = marker_quaternion.getY();
-    markers_[marker_array_id].pose_to_globe.orientation.z = marker_quaternion.getZ();
-    markers_[marker_array_id].pose_to_globe.orientation.w = marker_quaternion.getW();
   }
-}
   //------------------------------------------------------
   // Calculating the shortest camera marker distance
   // Camera with the shortest distance is used as reference of global position of object (camera)
@@ -573,11 +559,11 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
 
   bool any_markers_visible = false;
   int num_of_visible_markers = 0;
-  int closest_camera_index_ = 0;
+  int closest_camera_index = 0;
 
   if(first_marker_detected_==true)
   {
-    double min_size = 999999;
+    double min_size = INIT_MIN_SIZE_VALUE;
     for(size_t j = 0; j < num_of_markers_; j++)
     {
       double a;
@@ -591,12 +577,12 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
         a = markers_[j].current_camera_pose.position.x;
         b = markers_[j].current_camera_pose.position.y;
         c = markers_[j].current_camera_pose.position.z;
-        size =std::sqrt((a*a)+(b*b)+(c*c));
+        size =std::sqrt((a * a) + (b * b) + (c * c));
 
         if(size < min_size)
         {
           min_size = size;
-          closest_camera_index_=j;
+          closest_camera_index = j;
         }
 
         any_markers_visible = true;
@@ -610,22 +596,22 @@ Estimator::processImage(cv::Mat input_image,cv::Mat output_image)
     publishTfs(true);
 
   //------------------------------------------------------
-  // Calculating TF od closer camera
+  // Calculating TF of the closest camera
   // Camera with the shortest distance is used as reference of global position of object (camera)
   //------------------------------------------------------
   if((first_marker_detected_ == true) && (any_markers_visible == true))
   {
     std::stringstream closest_camera;
-    closest_camera << "camera_" << closest_camera_index_;
+    closest_camera << "camera_" << closest_camera_index;
 
-    listener_->waitForTransform("world",closest_camera.str(),ros::Time(0),ros::Duration(2.0));
+    listener_->waitForTransform("world",closest_camera.str(),ros::Time(0),ros::Duration(WAIT_FOR_TRANSFORM_INTERVAL));
     try
     {
       listener_->lookupTransform("world",closest_camera.str(),ros::Time(0), world_position_transform_);
     }
     catch(tf::TransformException &e)
     {
-      ROS_ERROR("Not able to lookup transform:");
+      ROS_ERROR_STREAM("Not able to lookup transform:" << e.what());
     }
 
     // Save TF to Pose
@@ -756,14 +742,14 @@ Estimator::publishMarker(geometry_msgs::Pose marker_pose, int marker_id, int ind
     rviz_marker.pose = marker_pose;
     rviz_marker.scale.x = marker_size_;
     rviz_marker.scale.y = marker_size_;
-    rviz_marker.scale.z = 0.01;
+    rviz_marker.scale.z = RVIZ_MARKER_HEIGHT;
 
-    rviz_marker.color.r = 1.0f;
-    rviz_marker.color.g = 1.0f;
-    rviz_marker.color.b = 1.0f;
-    rviz_marker.color.a = 1.0f;
+    rviz_marker.color.r = RVIZ_MARKER_COLOR_R;
+    rviz_marker.color.g = RVIZ_MARKER_COLOR_G;
+    rviz_marker.color.b = RVIZ_MARKER_COLOR_B;
+    rviz_marker.color.a = RVIZ_MARKER_COLOR_A;
 
-    rviz_marker.lifetime = ros::Duration(0.2);
+    rviz_marker.lifetime = ros::Duration(RVIZ_MARKER_LIFETIME);
 
     marker_visualization_pub_.publish(rviz_marker);
 }

@@ -149,6 +149,21 @@ private:
   tf::TransformListener *listener_;
   tf::TransformBroadcaster broadcaster_;
    
+  //Consts
+  static const int CV_WAIT_KEY = 10;
+  static const int CV_WINDOW_MARKER_LINE_WIDTH = 2;
+
+  static const double WAIT_FOR_TRANSFORM_INTERVAL = 1.0;
+  static const double BROADCAST_WAIT_INTERVAL = 0.0001;
+  static const double INIT_MIN_SIZE_VALUE = 1000000;
+
+  static const double RVIZ_MARKER_HEIGHT = 0.01;
+  static const double RVIZ_MARKER_LIFETIME = 0.2;
+  static const double RVIZ_MARKER_COLOR_R = 1.0;
+  static const double RVIZ_MARKER_COLOR_G = 1.0;
+  static const double RVIZ_MARKER_COLOR_B = 1.0;
+  static const double RVIZ_MARKER_COLOR_A = 1.0;
+
 };
 
 }  //aruco_mapping
