@@ -239,9 +239,9 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
   // Call aruco marker detector
   detector.detect(input_image, temp_markers, aruco_calib_params_, marker_size_);
 
-
-
+  //===================================================================
   // IF FIRST MARKER IS DETECTED
+  //===================================================================
   if((temp_markers.size() > 0) && (first_marker_detected_ == false))
   {
     // Filter detected markers to find one with the lowest ID
@@ -257,10 +257,13 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
     markers_[0].active = true;
     markers_[0].previous_marker_id = THIS_IS_FIRST_MARKER;
 
-    identifyWithWorldOrigin(lowest_marker_id);  //Make the lowest marker identical with world's origin
+    //Make the lowest marker identical with world's origin
+    identifyWithWorldOrigin(lowest_marker_id);
   }
 
+  //==================================================================
   // FOR EVERY DETECTED MARKER DO
+  //==================================================================
   for(size_t i = 0; i < temp_markers.size(); i++)
   {
     //Draw marker convex, ID, cube and axis
@@ -268,11 +271,13 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
     aruco::CvDrawingUtils::draw3dCube(output_image,temp_markers[i], aruco_calib_params_);
     aruco::CvDrawingUtils::draw3dAxis(output_image,temp_markers[i], aruco_calib_params_);
 
-    // Find out if new or already known marker?
+    // Find out if new or already known marker
     int current_marker_id = temp_markers[i].id;
     int index;
     int j = 0;
     bool already_known = false;
+
+    //==================================================================
 
     //Is it existing marker?
     while((already_known == false) && (j < marker_counter_))
@@ -288,20 +293,11 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
     // For existing marker compute actual camera pose:
     if((index < marker_counter_) && (first_marker_detected_ == true))
     {
-      markers_[index].current_camera_tf = arucoMarker2Tf(temp_markers[i]);
-      markers_[index].current_camera_tf = markers_[index].current_camera_tf.inverse();
-
-      const tf::Vector3 marker_position = markers_[index].current_camera_tf.getOrigin();
-      markers_[index].current_camera_pose.position.x = marker_position.getX();
-      markers_[index].current_camera_pose.position.y = marker_position.getY();
-      markers_[index].current_camera_pose.position.z = marker_position.getZ();
-
-      const tf::Quaternion marker_quaternion = markers_[index].current_camera_tf.getRotation();
-      markers_[index].current_camera_pose.orientation.x = marker_quaternion.getX();
-      markers_[index].current_camera_pose.orientation.y = marker_quaternion.getY();
-      markers_[index].current_camera_pose.orientation.z = marker_quaternion.getZ();
-      markers_[index].current_camera_pose.orientation.w = marker_quaternion.getW();
+       markers_[index].current_camera_tf = arucoMarker2Tf(temp_markers[i]);
+       computeCurrentCameraPose(index, true);
     }
+
+    //===================================================================
 
     //Is it a new marker?
     if(already_known == false)
@@ -322,20 +318,12 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
     }
 
     // For a new marker compute actual camera pose:
-    if((index == marker_counter_) && (first_marker_detected_==true))
+    if((index == marker_counter_) && (first_marker_detected_ == true))
     {
       markers_[index].current_camera_tf = arucoMarker2Tf(temp_markers[i]);
+      computeCurrentCameraPose(index, false);
 
-      tf::Vector3 marker_position = markers_[index].current_camera_tf.getOrigin();
-      markers_[index].current_camera_pose.position.x = marker_position.getX();
-      markers_[index].current_camera_pose.position.y = marker_position.getY();
-      markers_[index].current_camera_pose.position.z = marker_position.getZ();
-
-      tf::Quaternion marker_quaternion = markers_[index].current_camera_tf.getRotation();
-      markers_[index].current_camera_pose.orientation.x = marker_quaternion.getX();
-      markers_[index].current_camera_pose.orientation.y = marker_quaternion.getY();
-      markers_[index].current_camera_pose.orientation.z = marker_quaternion.getZ();
-      markers_[index].current_camera_pose.orientation.w = marker_quaternion.getW();
+      //------------------------------------------------------------------
 
       // Test, if possible to compute position of a new marker with respect to the previous marker
       bool at_least_one_marker_visible = false;
@@ -360,6 +348,8 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
           }
         }
       }
+
+      //-----------------------------------------------------------------
 
       // If new position can be calculated
       if(at_least_one_marker_visible == true)
@@ -389,10 +379,9 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
           ROS_ERROR_STREAM("Not able to obtain TF Transform, an exception" << e.what());
         }
 
-
         // Save pose of computed TF
-        marker_quaternion = markers_[index].transform_to_previous.getRotation();
-        marker_position = markers_[index].transform_to_previous.getOrigin();
+        tf::Vector3 marker_position = markers_[index].transform_to_previous.getOrigin();
+        tf::Quaternion marker_quaternion = markers_[index].transform_to_previous.getRotation();
 
         // If plane "space_type" selected, we consider roll and pitch and z-axis zero
         if(space_type_ == "plane")
@@ -421,19 +410,8 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
         // increasing count of markers
         marker_counter_++;
 
-        // Position of new marker needs to be inveted
-        markers_[index].current_camera_tf = markers_[index].current_camera_tf.inverse();
-
-        marker_position = markers_[index].current_camera_tf.getOrigin();
-        markers_[index].current_camera_pose.position.x = marker_position.getX();
-        markers_[index].current_camera_pose.position.y = marker_position.getY();
-        markers_[index].current_camera_pose.position.z = marker_position.getZ();
-
-        marker_quaternion = markers_[index].current_camera_tf.getRotation();
-        markers_[index].current_camera_pose.orientation.x = marker_quaternion.getX();
-        markers_[index].current_camera_pose.orientation.y = marker_quaternion.getY();
-        markers_[index].current_camera_pose.orientation.z = marker_quaternion.getZ();
-        markers_[index].current_camera_pose.orientation.w = marker_quaternion.getW();
+        // Compute camera position with respect to new marker
+        computeCurrentCameraPose(index, true);
 
         // Publish all known TFs
         publishTfs(false);
@@ -451,12 +429,15 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
     }
   }
 
+  //===============================================================
   //COMPUTE GLOBAL CAMERA POSITION
+  //===============================================================
+
   bool any_markers_visible = false;
   int num_of_visible_markers = 0;
   int closest_camera_index = 0;
 
-  //Use shortest distance to find the closest camera
+  //Find the closest camera using the shortest distance
   if(first_marker_detected_ == true)
   {
     double min_size = INIT_MIN_SIZE_VALUE;
@@ -467,7 +448,7 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
       double c;
       double size;
 
-      // If marker is active, distance is calculated
+      //Calculate a camera distance for every active/visible marker
       if(markers_[j].active == true)
       {
         a = markers_[j].current_camera_pose.position.x;
@@ -491,6 +472,9 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
   if(first_marker_detected_ == true)
     publishTfs(true);
 
+  //====================================================================
+
+  //Compute global camera pose from the closest marker position
   if((first_marker_detected_ == true) && (any_markers_visible == true))
   {
     std::stringstream closest_camera;
@@ -519,9 +503,13 @@ bool ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
     world_position_geometry_msg_.orientation.w = marker_quaternion.getW();
   }
 
+  //====================================================================
+
   // Publish all known markers
   if(first_marker_detected_ == true)
     publishTfs(true);
+
+  //====================================================================
 
   //Publish ArucoMarker custom message to "aruco_poses" topic
   publishMarkerCustomMsg(any_markers_visible, num_of_visible_markers);
@@ -683,6 +671,24 @@ void ArucoMapping::identifyWithWorldOrigin(int lowest_marker_id)
   ROS_INFO_STREAM("Marker ID: " << lowest_marker_id << " is set as world's origin");
 }
 
+void ArucoMapping::computeCurrentCameraPose(int index, bool invert)
+{
+  if(invert == true)
+    markers_[index].current_camera_tf = markers_[index].current_camera_tf.inverse();
+
+  tf::Vector3 marker_position = markers_[index].current_camera_tf.getOrigin();
+  markers_[index].current_camera_pose.position.x = marker_position.getX();
+  markers_[index].current_camera_pose.position.y = marker_position.getY();
+  markers_[index].current_camera_pose.position.z = marker_position.getZ();
+
+  tf::Quaternion marker_quaternion = markers_[index].current_camera_tf.getRotation();
+  markers_[index].current_camera_pose.orientation.x = marker_quaternion.getX();
+  markers_[index].current_camera_pose.orientation.y = marker_quaternion.getY();
+  markers_[index].current_camera_pose.orientation.z = marker_quaternion.getZ();
+  markers_[index].current_camera_pose.orientation.w = marker_quaternion.getW();
+
+}
+
 void ArucoMapping::computeMarkerGlobalPosition(int index)
 {
   std::stringstream marker_globe;
@@ -699,7 +705,7 @@ void ArucoMapping::computeMarkerGlobalPosition(int index)
   }
 
   // Saving TF to Pose
-  const tf::Vector3 marker_position = markers_[index].transform_to_globe.getOrigin();
+  tf::Vector3 marker_position = markers_[index].transform_to_globe.getOrigin();
   markers_[index].pose_to_globe.position.x = marker_position.getX();
   markers_[index].pose_to_globe.position.y = marker_position.getY();
   markers_[index].pose_to_globe.position.z = marker_position.getZ();

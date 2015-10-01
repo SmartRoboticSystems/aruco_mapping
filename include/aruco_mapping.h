@@ -115,6 +115,9 @@ private:
   /** \brief Function to identify lowest marker id with world's origin*/
   void identifyWithWorldOrigin(int lowest_marker_id);
 
+  /** \brief Function to compute current camera pose with respect to the marker*/
+  void computeCurrentCameraPose(int index, bool invert);
+
   /** \brief Function to compute global pose if relative pose to previous marker is known*/
   void computeMarkerGlobalPosition(int index);
 
