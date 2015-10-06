@@ -37,14 +37,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Standard ROS libraries
 #include <ros/ros.h>
 #include <sensor_msgs/image_encodings.h>
+#include <camera_calibration_parsers/parse_ini.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
-
-// Standard C++ libraries
-#include <fstream>
 
 // Aruco libraries
 #include <aruco/aruco.h>
@@ -61,7 +59,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Custom message
 #include <aruco_mapping/ArucoMarker.h>
 
-
 /** \brief Aruco mapping namespace */
 namespace aruco_mapping
 {
@@ -74,20 +71,21 @@ public:
   /** \brief Struct to keep marker information */
   struct MarkerInfo
   {
-    bool active;                                     // Flag of marker visibility (active)
-    int marker_id;                                   // Marker ID
-    int previous_marker_id;                          // Used for chaining markers
-    geometry_msgs::Pose pose_to_previous;            // Position with respect to previous marker
-    geometry_msgs::Pose pose_to_globe;               // Position with respect to world's origin
-    tf::StampedTransform transform_to_previous;      // TF with respect to previous marker
-    tf::StampedTransform transform_to_globe;         // TF with respect to world's origin
-    geometry_msgs::Pose current_camera_pose;         // Position of camera with respect to the marker
-    tf::Transform current_camera_tf;                 // TF of camera with respect to the marker
-   };
+
+    bool visible;                                   // Marker visibile in actual image?
+    int marker_id;                                  // Marker ID
+    int previous_marker_id;                         // Used for chaining markers
+    geometry_msgs::Pose geometry_msg_to_previous;   // Position with respect to previous marker
+    geometry_msgs::Pose geometry_msg_to_world;      // Position with respect to world's origin
+    tf::StampedTransform tf_to_previous;            // TF with respect to previous marker
+    tf::StampedTransform tf_to_world;               // TF with respect to world's origin
+    geometry_msgs::Pose current_camera_pose;        // Position of camera with respect to the marker
+    tf::Transform current_camera_tf;                // TF of camera with respect to the marker
+  };
 
 public:
   
-  /** \brief Construct client for Aruco mapping*/
+  /** \brief Construct a client for EZN64 USB control*/  
   ArucoMapping(ros::NodeHandle *nh);
     
   ~ArucoMapping();
@@ -98,31 +96,13 @@ public:
 private:
   
   /** \brief Function to parse data from calibration file*/
-  bool loadCalibrationFile(std::string filename);
-
-  /** \brief Function to process input image, detect markers and its poses*/
-  bool processImage(cv::Mat input_image,cv::Mat output_image);
+  bool parseCalibrationFile(std::string filename);
 
   /** \brief Function to publish all known TFs*/
   void publishTfs(bool world_option);
 
   /** \brief Function to publish all known markers for visualization purposes*/
-  void publishMarkerForVisualization(geometry_msgs::Pose marker_pose, int marker_id, int index);
-
-  /** \brief Function to publish custom marker message to "aruco_poses" topic*/
-  void publishMarkerCustomMsg(bool any_markers_visible, int num_of_visible_markers);
-
-  /** \brief Function to identify lowest marker id with world's origin*/
-  void identifyWithWorldOrigin(int lowest_marker_id);
-
-  /** \brief Function to compute current camera pose with respect to the marker*/
-  void computeCurrentCameraPose(int index, bool invert);
-
-  /** \brief Function to compute global pose if relative pose to previous marker is known*/
-  void computeMarkerGlobalPosition(int index);
-
-  /** \brief Compute TF from marker detector result*/
-  tf::Transform arucoMarker2Tf(const aruco::Marker &marker);
+  void publishMarker(geometry_msgs::Pose markerPose, int MarkerID, int rank);
 
   /** \brief Publisher of visualization_msgs::Marker message to "aruco_markers" topic*/
   ros::Publisher marker_visualization_pub_;
@@ -130,23 +110,29 @@ private:
   /** \brief Publisher of aruco_mapping::ArucoMarker custom message*/
   ros::Publisher marker_msg_pub_;
 
-  //Launch file parameters
-  std::string calib_filepath_;
+  /** \brief Compute TF from marker detector result*/
+  tf::Transform arucoMarker2Tf(const aruco::Marker &marker);
+
+  /** \brief Process actual image, detect markers and compute poses */
+  bool processImage(cv::Mat input_image,cv::Mat output_image);
+
+  //Launch file params
+  std::string calib_filename_;                    
   std::string space_type_;                        
   float marker_size_;
-  int num_of_markers_;                    
+  int num_of_markers_;
   bool roi_allowed_;
   int  roi_x_;                                      
   int  roi_y_;                                      
   int  roi_w_;                                     
-  int  roi_h_;
-
+  int  roi_h_;     
+  
   /** \brief Container holding MarkerInfo data about all detected markers */
   std::vector<MarkerInfo> markers_;
-
+   
   /** \brief Actual TF of camera with respect to world's origin */
   tf::StampedTransform world_position_transform_;
-
+  
   /** \brief Actual Pose of camera with respect to world's origin */
   geometry_msgs::Pose world_position_geometry_msg_;
 
@@ -154,30 +140,31 @@ private:
 
   int marker_counter_;
   int marker_counter_previous_;
-
+  int closest_camera_index_;
+  int lowest_marker_id_;
   bool first_marker_detected_;
-
+  
   tf::TransformListener *listener_;
   tf::TransformBroadcaster broadcaster_;
-   
+
   //Consts
-  static const int CV_WAIT_KEY = 10;
-  static const int CV_WINDOW_MARKER_LINE_WIDTH = 2;
+   static const int CV_WAIT_KEY = 10;
+   static const int CV_WINDOW_MARKER_LINE_WIDTH = 2;
 
-  static const double WAIT_FOR_TRANSFORM_INTERVAL = 1.0;
-  static const double BROADCAST_WAIT_INTERVAL = 0.0001;
-  static const double INIT_MIN_SIZE_VALUE = 1000000;
+   static const double WAIT_FOR_TRANSFORM_INTERVAL = 2.0;
+   static const double BROADCAST_WAIT_INTERVAL = 0.0001;
+   static const double INIT_MIN_SIZE_VALUE = 1000000;
 
-  static const double RVIZ_MARKER_HEIGHT = 0.01;
-  static const double RVIZ_MARKER_LIFETIME = 0.2;
-  static const double RVIZ_MARKER_COLOR_R = 1.0;
-  static const double RVIZ_MARKER_COLOR_G = 1.0;
-  static const double RVIZ_MARKER_COLOR_B = 1.0;
-  static const double RVIZ_MARKER_COLOR_A = 1.0;
+   static const double RVIZ_MARKER_HEIGHT = 0.01;
+   static const double RVIZ_MARKER_LIFETIME = 0.2;
+   static const double RVIZ_MARKER_COLOR_R = 1.0;
+   static const double RVIZ_MARKER_COLOR_G = 1.0;
+   static const double RVIZ_MARKER_COLOR_B = 1.0;
+   static const double RVIZ_MARKER_COLOR_A = 1.0;
 
-  static const double THIS_IS_FIRST_MARKER = -2;
+   static const double THIS_IS_FIRST_MARKER = -2;
 
-};  //ArucoMapping class
-}   //aruco_mapping namespace
+}; //ArucoMapping class
+}  //aruco_mapping namespace
 
 #endif //ARUCO_MAPPING_H
