@@ -12,7 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
              tf
              pal_vision_segmentation
              aruco
-             aruco_msgs)
+             aruco_msgs
+             camera_calibration_parsers)
 
 include_directories(${catkin_INCLUDE_DIRS}
                     ${PROJECT_SOURCE_DIR}/include/)
@@ -20,8 +21,8 @@ include_directories(${catkin_INCLUDE_DIRS}
 include_directories(${PROJECT_SOURCE_DIR}/src/)
 
 
-SET(SOURCES ${PROJECT_SOURCE_DIR}/src/aruco_mapping.cpp
-            ${PROJECT_SOURCE_DIR}/src/aruco_mapping_lib.cpp)
+SET(SOURCES ${PROJECT_SOURCE_DIR}/src/main.cpp
+            ${PROJECT_SOURCE_DIR}/src/aruco_mapping.cpp)
    
 SET(HEADERS ${PROJECT_SOURCE_DIR}/include/aruco_mapping.h)
 
@@ -38,8 +39,10 @@ catkin_package(
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
-add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} aruco_mapping_gencpp)
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} aruco_mapping_gencpp )
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${aruco_LIBS} ${ROS_LIBRARIES} ${catkin_LIBRARIES})
 
 set(ROS_BUILD_TYPE Debug)
 set(CMAKE_BUILD_TYPE Debug)
+
+ 
