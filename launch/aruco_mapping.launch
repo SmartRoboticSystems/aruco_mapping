@@ -2,7 +2,7 @@
 <launch> 
 
   <!-- RVIZ -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find aruco_mapping)/launch/rviz_config.rviz" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find aruco_mapping)/launch/aruco_config.rviz" />
 
    <!--   usb_cam node -->
   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen">
