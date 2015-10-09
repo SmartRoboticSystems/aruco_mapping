@@ -2,8 +2,8 @@
 Changelog for package aruco_mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.0 (2015-10-09)
+------------------
 * removed pal_vision_segmentation dependency
 * Contributors: durovsky
 
