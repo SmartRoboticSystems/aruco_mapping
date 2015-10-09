@@ -10,7 +10,6 @@ find_package(catkin REQUIRED COMPONENTS
              image_transport
              cv_bridge
              tf
-             pal_vision_segmentation
              aruco
              aruco_msgs
              camera_calibration_parsers)
