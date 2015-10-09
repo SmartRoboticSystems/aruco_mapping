@@ -2,8 +2,8 @@
 Changelog for package aruco_mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.1 (2015-10-09)
+------------------
 * 1.0.0
 * CHANGELOG
 * fix

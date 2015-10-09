@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>aruco_mapping</name>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <description>
     Aruco mapping is a package that allows user to create a map of Aruco markers  
     randomly placed in 2D or 3D space only by means of by single camera. Such a map
