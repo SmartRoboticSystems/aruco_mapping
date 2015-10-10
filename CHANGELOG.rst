@@ -2,8 +2,8 @@
 Changelog for package aruco_mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.3 (2015-10-10)
+------------------
 * updated package.xml
 * Contributors: durovsky
 

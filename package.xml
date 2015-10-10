@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>aruco_mapping</name>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
   <description>
     This package allows user to create a map of Aruco markers in 2D or 3D space 
     and estimate full 6 DOF pose of the camera. 
