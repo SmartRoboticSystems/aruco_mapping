@@ -11,7 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
              cv_bridge
              tf
              aruco
-             aruco_msgs
+             visualization_msgs
              camera_calibration_parsers)
 
 include_directories(${catkin_INCLUDE_DIRS}
