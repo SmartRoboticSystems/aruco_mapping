@@ -2,8 +2,8 @@
 Changelog for package aruco_mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.4 (2015-10-11)
+------------------
 * msg file addopted to  coding style rules
 * Contributors: durovsky
 
