@@ -602,19 +602,17 @@ ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
   {
     marker_msg.header.stamp = ros::Time::now();
     marker_msg.header.frame_id = "world";
-    marker_msg.numberOfMarkers = num_of_visible_markers;
-    marker_msg.visibility = true;
-    marker_msg.globalPose = world_position_geometry_msg_;
-    marker_msg.markersID.clear();
-    marker_msg.markersPose.clear();
-    marker_msg.cameraPose.clear();
+    marker_msg.marker_visibile = true;
+    marker_msg.num_of_visible_markers = num_of_visible_markers;
+    marker_msg.global_camera_pose = world_position_geometry_msg_;
+    marker_msg.marker_ids.clear();
+    marker_msg.global_marker_poses.clear();
     for(size_t j = 0; j < marker_counter_; j++)
     {
       if(markers_[j].visible == true)
       {
-        marker_msg.markersID.push_back(markers_[j].marker_id);
-        marker_msg.markersPose.push_back(markers_[j].geometry_msg_to_world);
-        marker_msg.cameraPose.push_back(markers_[j].current_camera_pose);
+        marker_msg.marker_ids.push_back(markers_[j].marker_id);
+        marker_msg.global_marker_poses.push_back(markers_[j].geometry_msg_to_world);       
       }
     }
   }
@@ -622,10 +620,10 @@ ArucoMapping::processImage(cv::Mat input_image,cv::Mat output_image)
   {
     marker_msg.header.stamp = ros::Time::now();
     marker_msg.header.frame_id = "world";
-    marker_msg.numberOfMarkers = num_of_visible_markers;
-    marker_msg.visibility = false;
-    marker_msg.markersID.clear();
-    marker_msg.markersPose.clear();
+    marker_msg.num_of_visible_markers = num_of_visible_markers;
+    marker_msg.marker_visibile = false;
+    marker_msg.marker_ids.clear();
+    marker_msg.global_marker_poses.clear();
   }
 
   // Publish custom marker msg

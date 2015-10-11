@@ -23,7 +23,6 @@
   <build_depend>camera_calibration_parsers</build_depend>
   
   <run_depend>roscpp</run_depend>
-  <run_depend>message_runtime</run_depend>
   <run_depend>image_transport</run_depend>
   <run_depend>cv_bridge</run_depend>
   <run_depend>tf</run_depend>

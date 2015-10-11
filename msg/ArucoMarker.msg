@@ -1,7 +1,7 @@
 std_msgs/Header header
-bool visibility
-int32 numberOfMarkers
-geometry_msgs/Pose globalPose
-int32[] markersID
-geometry_msgs/Pose[] markersPose
-geometry_msgs/Pose[] cameraPose
+bool marker_visibile
+int32 num_of_visible_markers
+geometry_msgs/Pose global_camera_pose
+int32[] marker_ids
+geometry_msgs/Pose[] global_marker_poses
+
