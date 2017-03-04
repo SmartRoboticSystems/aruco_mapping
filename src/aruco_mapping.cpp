@@ -116,7 +116,7 @@ ArucoMapping::parseCalibrationFile(std::string calib_filename)
   sensor_msgs::CameraInfo camera_calibration_data;
   std::string camera_name = "camera";
 
-  camera_calibration_parsers::readCalibrationIni(calib_filename, camera_name, camera_calibration_data);
+  camera_calibration_parsers::readCalibration(calib_filename, camera_name, camera_calibration_data);
 
   // Alocation of memory for calibration data
   cv::Mat  *intrinsics       = new(cv::Mat)(3, 3, CV_64F);
